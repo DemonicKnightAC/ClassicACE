@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ACE.Common;
+using ACE.Database;
 using ACE.Entity.Enum;
 using ACE.Entity.Enum.Properties;
+using ACE.Entity.Models;
 using ACE.Server.Entity;
 using ACE.Server.Factories;
 using ACE.Server.Managers;
@@ -56,9 +58,25 @@ namespace ACE.Server.WorldObjects
         {
             // transaction has been validated by this point
 
-            var currencyWcid = vendor.AlternateCurrency ?? coinStackWcid;
+            if (vendor.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentvendor)
+            {
+                if (CoinValue >= cost)
+                    SpendCurrency(coinStackWcid, cost, true);
+                else
+                {
+                    var remainder = cost % 250000;
+                    SpendCurrency(coinStackWcid, remainder, true);
 
-            SpendCurrency(currencyWcid, cost, true);
+                    var notesNeeded = (uint)Math.Floor((double)cost / 250000);
+                    SpendCurrency((uint)Factories.Enum.WeenieClassName.tradenote250000, notesNeeded, true);
+                }
+
+            }
+            else
+            {
+                var currencyWcid = vendor.AlternateCurrency ?? coinStackWcid;
+                SpendCurrency(currencyWcid, cost, true);
+            }
 
             vendor.AddMoneyIncome((int)cost);
 
@@ -84,28 +102,18 @@ namespace ACE.Server.WorldObjects
 
             foreach (var item in uniqueItems)
             {
-                if (TryCreateInInventoryWithNetworking(item, out _, true))
+                if (item.Container != null && item.Container.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentbox)
                 {
-                    vendor.UniqueItemsForSale.Remove(item.Guid);
-
-
-                    if (Common.ConfigManager.Config.Server.WorldRuleset != Common.Ruleset.CustomDM)
-                    {
-                        // this was only for when the unique item was sold to the vendor,
-                        // to determine when the item should rot on the vendor. it gets removed now
-                        item.SoldTimestamp = null;
-                    }
-                    else
-                    {
-                        // this is used to determine if an item is a recently purchased item when a player dies on a drop recently purchased items landblock.
-                        item.SoldTimestamp = Time.GetUnixTime();
-                    }
-
-
-                    vendor.NumItemsSold++;
+                    FinalizeConsignment(vendor, item);
+                }
+                else if (item.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentpaymentsack)
+                {
+                    FinalizeConsignmentPayment(vendor, item as Container);
                 }
                 else
-                    log.Error($"[VENDOR] {Name}.FinalizeBuyTransaction({vendor.Name}) - couldn't add {item.Name} ({item.Guid}) to player inventory after validation, this shouldn't happen!");
+                {
+                    CreateInventoryForBuyTransaction(vendor, item);
+                }
             }
 
             Session.Network.EnqueueSend(new GameMessageSound(Guid, Sound.PickUpItem));
@@ -115,7 +123,119 @@ namespace ACE.Server.WorldObjects
 
             var altCurrencySpent = vendor.AlternateCurrency != null ? cost : 0;
 
-            vendor.ApproachVendor(this, VendorType.Buy, altCurrencySpent);
+            vendor.ApproachVendor(this, VendorType.Buy, altCurrencySpent, LastVendorFilter);
+        }
+
+        private void CreateInventoryForBuyTransaction(Vendor vendor, WorldObject item)
+        {
+            if (TryCreateInInventoryWithNetworking(item, out _, true))
+            {
+                vendor.UniqueItemsForSale.Remove(item.Guid);
+
+                if (Common.ConfigManager.Config.Server.WorldRuleset != Common.Ruleset.CustomDM)
+                {
+                    // this was only for when the unique item was sold to the vendor,
+                    // to determine when the item should rot on the vendor. it gets removed now
+                    item.SoldTimestamp = null;
+                }
+                else
+                {
+                    // this is used to determine if an item is a recently purchased item when a player dies on a drop recently purchased items landblock.
+                    item.SoldTimestamp = Time.GetUnixTime();
+                }
+
+                vendor.NumItemsSold++;
+            }
+            else
+                log.Error($"[VENDOR] {Name}.FinalizeBuyTransaction({vendor.Name}) - couldn't add {item.Name} ({item.Guid}) to player inventory after validation, this shouldn't happen!");
+        }
+
+        private void FinalizeConsignment(Vendor vendor, WorldObject item)
+        {
+            DatabaseManager.Shard.GetConsignmentByObjectId(item.Guid.Full, consignment =>
+            {
+                if (consignment == null)
+                {
+                    log.Warn($"[PLAYER_COMMERCE] {Name}.FinalizeConsignment(Couldn't find consignment for item: {item.Guid.Full}, it may have already sold!");
+                    return;
+                }
+
+                void CreateInventory(bool result)
+                {
+                    if (result)
+                    {
+                        var desc = item.GetProperty(PropertyString.LongDesc);
+                        item.SetProperty(PropertyInt.Value, consignment.OriginalValue);
+                        item.SetProperty(PropertyString.LongDesc, desc.Replace($"\nOriginal Value: {consignment.OriginalValue}", ""));
+                        CreateInventoryForBuyTransaction(vendor, item);
+                    }
+                    else
+                        log.Warn($"[PLAYER_COMMERCE] {Name}.FinalizeConsignment(Couldn't complete consignment: {consignment.Id}, it may have already sold!");
+                }
+
+                if (Guid == consignment.SellerId)
+                    DatabaseManager.Shard.RemoveConsignment(consignment, CreateInventory);
+                else
+                {
+                    var consignmentComplete = new ConsignmentComplete();
+                    consignmentComplete.Id = consignment.Id;
+                    consignmentComplete.ObjectId = consignment.ObjectId;
+                    consignmentComplete.WeenieClassId = item.WeenieClassId;
+                    consignmentComplete.SellerId = consignment.SellerId;
+                    consignmentComplete.BuyerId = Guid;
+                    consignmentComplete.Price = consignment.Price;
+                    consignmentComplete.SoldTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds());
+                    DatabaseManager.Shard.CreateConsignmentComplete(consignmentComplete, CreateInventory);
+                }
+            });
+        }
+
+        private void FinalizeConsignmentPayment(Vendor vendor, Container paymentSack)
+        {
+            var payout = (uint)Math.Round(paymentSack.ConsignmentComplete.Price * 0.9);
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.tradenote250000);
+            payout %= 250000;
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.tradenote50000);
+            payout %= 50000;
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.tradenote10000);
+            payout %= 10000;
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.tradenote1000);
+            payout %= 1000;
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.tradenote100);
+            payout %= 100;
+
+            AddPayoutToSack(paymentSack, payout, Factories.Enum.WeenieClassName.coinstack);
+
+            DatabaseManager.Shard.RemoveConsignmentComplete(paymentSack.ConsignmentComplete, result =>
+            {
+                if (result)
+                {
+                    CreateInventoryForBuyTransaction(vendor, paymentSack);
+                }
+                else
+                    log.Warn($"[PLAYER_COMMERCE] {Name}.FinalizeConsignmentPayment(Couldn't remove consignmentComplete: {paymentSack.ConsignmentComplete.Id}, it may have already paid out!");
+            });
+        }
+
+        private void AddPayoutToSack(Container sack, uint coins, Factories.Enum.WeenieClassName wcid)
+        {
+            var noteWorldObject = WorldObjectFactory.CreateNewWorldObject((uint)wcid);
+            if (noteWorldObject.Value == null)
+                return;
+
+            var count = (uint)Math.Floor(coins / (double)noteWorldObject.Value);
+            if (count == 0)
+                return;
+
+            noteWorldObject.StackSize = (int)count;
+            noteWorldObject.Value = (int)Math.Round(count * (double)noteWorldObject.Value);
+            noteWorldObject.CalculateObjDesc();
+            sack.TryAddToInventory(noteWorldObject);
         }
 
         // player selling items to vendor

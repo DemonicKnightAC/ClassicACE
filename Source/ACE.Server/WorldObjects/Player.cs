@@ -112,6 +112,8 @@ namespace ACE.Server.WorldObjects
 
         public float CurrentRadarRange => Location.Indoors ? MaxRadarRange_Indoors : MaxRadarRange_Outdoors;
 
+        public string LastVendorFilter;
+
         /// <summary>
         /// A new biota be created taking all of its values from weenie.
         /// </summary>

@@ -19,6 +19,8 @@ namespace ACE.Database.Models.Shard
             CharacterPropertiesSquelch = new HashSet<CharacterPropertiesSquelch>();
             CharacterPropertiesTitleBook = new HashSet<CharacterPropertiesTitleBook>();
             CharacterPropertiesCampRegistry = new HashSet<CharacterPropertiesCampRegistry>();
+            Consignment = new HashSet<Consignment>();
+            ConsignmentComplete = new HashSet<ConsignmentComplete>();
         }
 
         public uint Id { get; set; }
@@ -46,5 +48,7 @@ namespace ACE.Database.Models.Shard
         public virtual ICollection<CharacterPropertiesSquelch> CharacterPropertiesSquelch { get; set; }
         public virtual ICollection<CharacterPropertiesTitleBook> CharacterPropertiesTitleBook { get; set; }
         public virtual ICollection<CharacterPropertiesCampRegistry> CharacterPropertiesCampRegistry { get; set; }
+        public virtual ICollection<Consignment> Consignment { get; set; }
+        public virtual ICollection<ConsignmentComplete> ConsignmentComplete { get; set; }
     }
 }

@@ -1,0 +1,8 @@
+﻿TODO:
+
+Make vendor give instructions on usage
+Give Consignment vendor clothes
+Make Box look like box, not backpack, in world
+
+Welp, taking trade notes during payment failed, it is blocked on the client because it doesn't look like you have enough pyreals.
+Back to the drawing board, guess I'm setting up an alt currency banked with the vendors or something 8/

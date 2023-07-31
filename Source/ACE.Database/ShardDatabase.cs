@@ -16,6 +16,7 @@ using ACE.Common;
 using ACE.Common.Extensions;
 using ACE.Database.Entity;
 using ACE.Database.Models.Shard;
+using ACE.Entity;
 using ACE.Entity.Enum;
 using ACE.Entity.Enum.Properties;
 
@@ -23,24 +24,27 @@ namespace ACE.Database
 {
     public class ShardDatabase
     {
-        private static readonly ILog log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog log =
+            LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public bool Exists(bool retryUntilFound)
         {
             var config = Common.ConfigManager.Config.MySql.Shard;
 
-            for (; ; )
+            for (;;)
             {
                 using (var context = new ShardDbContext())
                 {
                     if (((RelationalDatabaseCreator)context.Database.GetService<IDatabaseCreator>()).Exists())
                     {
-                        log.Debug($"[DATABASE] Successfully connected to {config.Database} database on {config.Host}:{config.Port}.");
+                        log.Debug(
+                            $"[DATABASE] Successfully connected to {config.Database} database on {config.Host}:{config.Port}.");
                         return true;
                     }
                 }
 
-                log.Error($"[DATABASE] Attempting to reconnect to {config.Database} database on {config.Host}:{config.Port} in 5 seconds...");
+                log.Error(
+                    $"[DATABASE] Attempting to reconnect to {config.Database} database on {config.Host}:{config.Port} in 5 seconds...");
 
                 if (retryUntilFound)
                     Thread.Sleep(5000);
@@ -81,20 +85,22 @@ namespace ACE.Database
             // https://stackoverflow.com/questions/50402015/how-to-execute-sqlquery-with-entity-framework-core-2-1
 
             // This query is ugly, but very fast.
-            var sql = "SET @available_ids=0, @rownum=0;"                                                + Environment.NewLine +
-                      "SELECT"                                                                          + Environment.NewLine +
-                      " z.gap_starts_at, z.gap_ends_at_not_inclusive, @available_ids:=@available_ids+(z.gap_ends_at_not_inclusive - z.gap_starts_at) as running_total_available_ids" + Environment.NewLine +
-                      "FROM ("                                                                          + Environment.NewLine +
-                      " SELECT"                                                                         + Environment.NewLine +
-                      "  @rownum:=@rownum+1 AS gap_starts_at,"                                          + Environment.NewLine +
-                      "  @available_ids:=0,"                                                            + Environment.NewLine +
-                      "  IF(@rownum=id, 0, @rownum:=id) AS gap_ends_at_not_inclusive"                   + Environment.NewLine +
-                      " FROM"                                                                           + Environment.NewLine +
-                      "  (SELECT @rownum:=(SELECT MIN(id)-1 FROM biota WHERE id > " + min + ")) AS a"   + Environment.NewLine +
-                      "  JOIN biota"                                                                    + Environment.NewLine +
-                      "  WHERE id > " + min                                                             + Environment.NewLine +
-                      "  ORDER BY id"                                                                   + Environment.NewLine +
-                      " ) AS z"                                                                         + Environment.NewLine +
+            var sql = "SET @available_ids=0, @rownum=0;" + Environment.NewLine +
+                      "SELECT" + Environment.NewLine +
+                      " z.gap_starts_at, z.gap_ends_at_not_inclusive, @available_ids:=@available_ids+(z.gap_ends_at_not_inclusive - z.gap_starts_at) as running_total_available_ids" +
+                      Environment.NewLine +
+                      "FROM (" + Environment.NewLine +
+                      " SELECT" + Environment.NewLine +
+                      "  @rownum:=@rownum+1 AS gap_starts_at," + Environment.NewLine +
+                      "  @available_ids:=0," + Environment.NewLine +
+                      "  IF(@rownum=id, 0, @rownum:=id) AS gap_ends_at_not_inclusive" + Environment.NewLine +
+                      " FROM" + Environment.NewLine +
+                      "  (SELECT @rownum:=(SELECT MIN(id)-1 FROM biota WHERE id > " + min + ")) AS a" +
+                      Environment.NewLine +
+                      "  JOIN biota" + Environment.NewLine +
+                      "  WHERE id > " + min + Environment.NewLine +
+                      "  ORDER BY id" + Environment.NewLine +
+                      " ) AS z" + Environment.NewLine +
                       "WHERE z.gap_ends_at_not_inclusive!=0 AND @available_ids<" + limitAvailableIDsReturned + "; ";
 
             using (var context = new ShardDbContext())
@@ -111,8 +117,8 @@ namespace ACE.Database
 
                 while (reader.Read())
                 {
-                    var gap_starts_at               = reader.GetFieldValue<long>(0);
-                    var gap_ends_at_not_inclusive   = reader.GetFieldValue<decimal>(1);
+                    var gap_starts_at = reader.GetFieldValue<long>(0);
+                    var gap_ends_at_not_inclusive = reader.GetFieldValue<decimal>(1);
                     //var running_total_available_ids = reader.GetFieldValue<double>(2);
 
                     gaps.Add(((uint)gap_starts_at, (uint)gap_ends_at_not_inclusive - 1));
@@ -132,62 +138,87 @@ namespace ACE.Database
         [Flags]
         enum PopulatedCollectionFlags
         {
-            BiotaPropertiesAnimPart             = 0x1,
-            BiotaPropertiesAttribute            = 0x2,
-            BiotaPropertiesAttribute2nd         = 0x4,
-            BiotaPropertiesBodyPart             = 0x8,
-            BiotaPropertiesBook                 = 0x10,
-            BiotaPropertiesBookPageData         = 0x20,
-            BiotaPropertiesBool                 = 0x40,
-            BiotaPropertiesCreateList           = 0x80,
-            BiotaPropertiesDID                  = 0x100,
-            BiotaPropertiesEmote                = 0x200,
-            BiotaPropertiesEnchantmentRegistry  = 0x400,
-            BiotaPropertiesEventFilter          = 0x800,
-            BiotaPropertiesFloat                = 0x1000,
-            BiotaPropertiesGenerator            = 0x2000,
-            BiotaPropertiesIID                  = 0x4000,
-            BiotaPropertiesInt                  = 0x8000,
-            BiotaPropertiesInt64                = 0x10000,
-            BiotaPropertiesPalette              = 0x20000,
-            BiotaPropertiesPosition             = 0x40000,
-            BiotaPropertiesSkill                = 0x80000,
-            BiotaPropertiesSpellBook            = 0x100000,
-            BiotaPropertiesString               = 0x200000,
-            BiotaPropertiesTextureMap           = 0x400000,
-            HousePermission                     = 0x800000,
-            BiotaPropertiesAllegiance           = 0x1000000,
+            BiotaPropertiesAnimPart = 0x1,
+            BiotaPropertiesAttribute = 0x2,
+            BiotaPropertiesAttribute2nd = 0x4,
+            BiotaPropertiesBodyPart = 0x8,
+            BiotaPropertiesBook = 0x10,
+            BiotaPropertiesBookPageData = 0x20,
+            BiotaPropertiesBool = 0x40,
+            BiotaPropertiesCreateList = 0x80,
+            BiotaPropertiesDID = 0x100,
+            BiotaPropertiesEmote = 0x200,
+            BiotaPropertiesEnchantmentRegistry = 0x400,
+            BiotaPropertiesEventFilter = 0x800,
+            BiotaPropertiesFloat = 0x1000,
+            BiotaPropertiesGenerator = 0x2000,
+            BiotaPropertiesIID = 0x4000,
+            BiotaPropertiesInt = 0x8000,
+            BiotaPropertiesInt64 = 0x10000,
+            BiotaPropertiesPalette = 0x20000,
+            BiotaPropertiesPosition = 0x40000,
+            BiotaPropertiesSkill = 0x80000,
+            BiotaPropertiesSpellBook = 0x100000,
+            BiotaPropertiesString = 0x200000,
+            BiotaPropertiesTextureMap = 0x400000,
+            HousePermission = 0x800000,
+            BiotaPropertiesAllegiance = 0x1000000,
         }
 
         protected static void SetBiotaPopulatedCollections(Biota biota)
         {
             PopulatedCollectionFlags populatedCollectionFlags = 0;
 
-            if (biota.BiotaPropertiesAnimPart != null && biota.BiotaPropertiesAnimPart.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAnimPart;
-            if (biota.BiotaPropertiesAttribute != null && biota.BiotaPropertiesAttribute.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAttribute;
-            if (biota.BiotaPropertiesAttribute2nd != null && biota.BiotaPropertiesAttribute2nd.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAttribute2nd;
-            if (biota.BiotaPropertiesBodyPart != null && biota.BiotaPropertiesBodyPart.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBodyPart;
-            if (biota.BiotaPropertiesBook != null) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBook;
-            if (biota.BiotaPropertiesBookPageData != null && biota.BiotaPropertiesBookPageData.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBookPageData;
-            if (biota.BiotaPropertiesBool != null && biota.BiotaPropertiesBool.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBool;
-            if (biota.BiotaPropertiesCreateList != null && biota.BiotaPropertiesCreateList.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesCreateList;
-            if (biota.BiotaPropertiesDID != null && biota.BiotaPropertiesDID.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesDID;
-            if (biota.BiotaPropertiesEmote != null && biota.BiotaPropertiesEmote.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEmote;
-            if (biota.BiotaPropertiesEnchantmentRegistry != null && biota.BiotaPropertiesEnchantmentRegistry.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEnchantmentRegistry;
-            if (biota.BiotaPropertiesEventFilter != null && biota.BiotaPropertiesEventFilter.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEventFilter;
-            if (biota.BiotaPropertiesFloat != null && biota.BiotaPropertiesFloat.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesFloat;
-            if (biota.BiotaPropertiesGenerator != null && biota.BiotaPropertiesGenerator.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesGenerator;
-            if (biota.BiotaPropertiesIID != null && biota.BiotaPropertiesIID.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesIID;
-            if (biota.BiotaPropertiesInt != null && biota.BiotaPropertiesInt.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesInt;
-            if (biota.BiotaPropertiesInt64 != null && biota.BiotaPropertiesInt64.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesInt64;
-            if (biota.BiotaPropertiesPalette != null && biota.BiotaPropertiesPalette.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesPalette;
-            if (biota.BiotaPropertiesPosition != null && biota.BiotaPropertiesPosition.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesPosition;
-            if (biota.BiotaPropertiesSkill != null && biota.BiotaPropertiesSkill.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesSkill;
-            if (biota.BiotaPropertiesSpellBook != null && biota.BiotaPropertiesSpellBook.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesSpellBook;
-            if (biota.BiotaPropertiesString != null && biota.BiotaPropertiesString.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesString;
-            if (biota.BiotaPropertiesTextureMap != null && biota.BiotaPropertiesTextureMap.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesTextureMap;
-            if (biota.HousePermission != null && biota.HousePermission.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.HousePermission;
-            if (biota.BiotaPropertiesAllegiance != null && biota.BiotaPropertiesAllegiance.Count > 0) populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAllegiance;
+            if (biota.BiotaPropertiesAnimPart != null && biota.BiotaPropertiesAnimPart.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAnimPart;
+            if (biota.BiotaPropertiesAttribute != null && biota.BiotaPropertiesAttribute.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAttribute;
+            if (biota.BiotaPropertiesAttribute2nd != null && biota.BiotaPropertiesAttribute2nd.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAttribute2nd;
+            if (biota.BiotaPropertiesBodyPart != null && biota.BiotaPropertiesBodyPart.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBodyPart;
+            if (biota.BiotaPropertiesBook != null)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBook;
+            if (biota.BiotaPropertiesBookPageData != null && biota.BiotaPropertiesBookPageData.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBookPageData;
+            if (biota.BiotaPropertiesBool != null && biota.BiotaPropertiesBool.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesBool;
+            if (biota.BiotaPropertiesCreateList != null && biota.BiotaPropertiesCreateList.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesCreateList;
+            if (biota.BiotaPropertiesDID != null && biota.BiotaPropertiesDID.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesDID;
+            if (biota.BiotaPropertiesEmote != null && biota.BiotaPropertiesEmote.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEmote;
+            if (biota.BiotaPropertiesEnchantmentRegistry != null && biota.BiotaPropertiesEnchantmentRegistry.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEnchantmentRegistry;
+            if (biota.BiotaPropertiesEventFilter != null && biota.BiotaPropertiesEventFilter.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesEventFilter;
+            if (biota.BiotaPropertiesFloat != null && biota.BiotaPropertiesFloat.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesFloat;
+            if (biota.BiotaPropertiesGenerator != null && biota.BiotaPropertiesGenerator.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesGenerator;
+            if (biota.BiotaPropertiesIID != null && biota.BiotaPropertiesIID.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesIID;
+            if (biota.BiotaPropertiesInt != null && biota.BiotaPropertiesInt.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesInt;
+            if (biota.BiotaPropertiesInt64 != null && biota.BiotaPropertiesInt64.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesInt64;
+            if (biota.BiotaPropertiesPalette != null && biota.BiotaPropertiesPalette.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesPalette;
+            if (biota.BiotaPropertiesPosition != null && biota.BiotaPropertiesPosition.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesPosition;
+            if (biota.BiotaPropertiesSkill != null && biota.BiotaPropertiesSkill.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesSkill;
+            if (biota.BiotaPropertiesSpellBook != null && biota.BiotaPropertiesSpellBook.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesSpellBook;
+            if (biota.BiotaPropertiesString != null && biota.BiotaPropertiesString.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesString;
+            if (biota.BiotaPropertiesTextureMap != null && biota.BiotaPropertiesTextureMap.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesTextureMap;
+            if (biota.HousePermission != null && biota.HousePermission.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.HousePermission;
+            if (biota.BiotaPropertiesAllegiance != null && biota.BiotaPropertiesAllegiance.Count > 0)
+                populatedCollectionFlags |= PopulatedCollectionFlags.BiotaPropertiesAllegiance;
 
             biota.PopulatedCollectionFlags = (uint)populatedCollectionFlags;
         }
@@ -200,33 +231,74 @@ namespace ACE.Database
             if (biota == null)
                 return null;
 
-            PopulatedCollectionFlags populatedCollectionFlags = (PopulatedCollectionFlags)biota.PopulatedCollectionFlags;
+            PopulatedCollectionFlags populatedCollectionFlags =
+                (PopulatedCollectionFlags)biota.PopulatedCollectionFlags;
 
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAnimPart)) biota.BiotaPropertiesAnimPart = context.BiotaPropertiesAnimPart.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAttribute)) biota.BiotaPropertiesAttribute = context.BiotaPropertiesAttribute.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAttribute2nd)) biota.BiotaPropertiesAttribute2nd = context.BiotaPropertiesAttribute2nd.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBodyPart)) biota.BiotaPropertiesBodyPart = context.BiotaPropertiesBodyPart.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBook)) biota.BiotaPropertiesBook = context.BiotaPropertiesBook.FirstOrDefault(r => r.ObjectId == biota.Id);
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBookPageData)) biota.BiotaPropertiesBookPageData = context.BiotaPropertiesBookPageData.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBool)) biota.BiotaPropertiesBool = context.BiotaPropertiesBool.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesCreateList)) biota.BiotaPropertiesCreateList = context.BiotaPropertiesCreateList.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesDID)) biota.BiotaPropertiesDID = context.BiotaPropertiesDID.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEmote)) biota.BiotaPropertiesEmote = context.BiotaPropertiesEmote.Include(r => r.BiotaPropertiesEmoteAction).Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEnchantmentRegistry)) biota.BiotaPropertiesEnchantmentRegistry = context.BiotaPropertiesEnchantmentRegistry.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEventFilter)) biota.BiotaPropertiesEventFilter = context.BiotaPropertiesEventFilter.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesFloat)) biota.BiotaPropertiesFloat = context.BiotaPropertiesFloat.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesGenerator)) biota.BiotaPropertiesGenerator = context.BiotaPropertiesGenerator.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesIID)) biota.BiotaPropertiesIID = context.BiotaPropertiesIID.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesInt)) biota.BiotaPropertiesInt = context.BiotaPropertiesInt.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesInt64)) biota.BiotaPropertiesInt64 = context.BiotaPropertiesInt64.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesPalette)) biota.BiotaPropertiesPalette = context.BiotaPropertiesPalette.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesPosition)) biota.BiotaPropertiesPosition = context.BiotaPropertiesPosition.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesSkill)) biota.BiotaPropertiesSkill = context.BiotaPropertiesSkill.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesSpellBook)) biota.BiotaPropertiesSpellBook = context.BiotaPropertiesSpellBook.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesString)) biota.BiotaPropertiesString = context.BiotaPropertiesString.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesTextureMap)) biota.BiotaPropertiesTextureMap = context.BiotaPropertiesTextureMap.Where(r => r.ObjectId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.HousePermission)) biota.HousePermission = context.HousePermission.Where(r => r.HouseId == biota.Id).ToList();
-            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAllegiance)) biota.BiotaPropertiesAllegiance = context.BiotaPropertiesAllegiance.Where(r => r.AllegianceId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAnimPart))
+                biota.BiotaPropertiesAnimPart =
+                    context.BiotaPropertiesAnimPart.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAttribute))
+                biota.BiotaPropertiesAttribute =
+                    context.BiotaPropertiesAttribute.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAttribute2nd))
+                biota.BiotaPropertiesAttribute2nd =
+                    context.BiotaPropertiesAttribute2nd.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBodyPart))
+                biota.BiotaPropertiesBodyPart =
+                    context.BiotaPropertiesBodyPart.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBook))
+                biota.BiotaPropertiesBook = context.BiotaPropertiesBook.FirstOrDefault(r => r.ObjectId == biota.Id);
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBookPageData))
+                biota.BiotaPropertiesBookPageData =
+                    context.BiotaPropertiesBookPageData.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesBool))
+                biota.BiotaPropertiesBool = context.BiotaPropertiesBool.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesCreateList))
+                biota.BiotaPropertiesCreateList =
+                    context.BiotaPropertiesCreateList.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesDID))
+                biota.BiotaPropertiesDID = context.BiotaPropertiesDID.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEmote))
+                biota.BiotaPropertiesEmote = context.BiotaPropertiesEmote.Include(r => r.BiotaPropertiesEmoteAction)
+                    .Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEnchantmentRegistry))
+                biota.BiotaPropertiesEnchantmentRegistry = context.BiotaPropertiesEnchantmentRegistry
+                    .Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesEventFilter))
+                biota.BiotaPropertiesEventFilter =
+                    context.BiotaPropertiesEventFilter.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesFloat))
+                biota.BiotaPropertiesFloat = context.BiotaPropertiesFloat.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesGenerator))
+                biota.BiotaPropertiesGenerator =
+                    context.BiotaPropertiesGenerator.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesIID))
+                biota.BiotaPropertiesIID = context.BiotaPropertiesIID.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesInt))
+                biota.BiotaPropertiesInt = context.BiotaPropertiesInt.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesInt64))
+                biota.BiotaPropertiesInt64 = context.BiotaPropertiesInt64.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesPalette))
+                biota.BiotaPropertiesPalette =
+                    context.BiotaPropertiesPalette.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesPosition))
+                biota.BiotaPropertiesPosition =
+                    context.BiotaPropertiesPosition.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesSkill))
+                biota.BiotaPropertiesSkill = context.BiotaPropertiesSkill.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesSpellBook))
+                biota.BiotaPropertiesSpellBook =
+                    context.BiotaPropertiesSpellBook.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesString))
+                biota.BiotaPropertiesString = context.BiotaPropertiesString.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesTextureMap))
+                biota.BiotaPropertiesTextureMap =
+                    context.BiotaPropertiesTextureMap.Where(r => r.ObjectId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.HousePermission))
+                biota.HousePermission = context.HousePermission.Where(r => r.HouseId == biota.Id).ToList();
+            if (populatedCollectionFlags.HasFlag(PopulatedCollectionFlags.BiotaPropertiesAllegiance))
+                biota.BiotaPropertiesAllegiance =
+                    context.BiotaPropertiesAllegiance.Where(r => r.AllegianceId == biota.Id).ToList();
 
             return biota;
         }
@@ -290,7 +362,8 @@ namespace ACE.Database
                 context.SaveChanges();
 
                 if (firstException != null)
-                    log.Debug($"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                    log.Debug(
+                        $"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                 return true;
             }
@@ -303,8 +376,10 @@ namespace ACE.Database
                 }
 
                 // Character name might be in use or some other fault
-                log.Error($"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} failed first attempt with exception: {firstException.GetFullMessage()}");
-                log.Error($"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} failed second attempt with exception: {ex.GetFullMessage()}");
+                log.Error(
+                    $"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} failed first attempt with exception: {firstException.GetFullMessage()}");
+                log.Error(
+                    $"[DATABASE] DoSaveBiota 0x{biota.Id:X8}:{biota.GetProperty(PropertyString.Name)} failed second attempt with exception: {ex.GetFullMessage()}");
                 return false;
             }
         }
@@ -440,7 +515,8 @@ namespace ACE.Database
             }
         }
 
-        public bool SaveBiotasInParallel(IEnumerable<(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim rwLock)> biotas)
+        public bool SaveBiotasInParallel(
+            IEnumerable<(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim rwLock)> biotas)
         {
             var result = true;
 
@@ -474,7 +550,8 @@ namespace ACE.Database
                     context.SaveChanges();
 
                     if (firstException != null)
-                        log.Debug($"[DATABASE] RemoveBiota 0x{id:X8} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                        log.Debug(
+                            $"[DATABASE] RemoveBiota 0x{id:X8} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                     return true;
                 }
@@ -487,8 +564,10 @@ namespace ACE.Database
                     }
 
                     // Character name might be in use or some other fault
-                    log.Error($"[DATABASE] RemoveBiota 0x{id:X8} failed first attempt with exception: {firstException.GetFullMessage()}");
-                    log.Error($"[DATABASE] RemoveBiota 0x{id:X8} failed second attempt with exception: {ex.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] RemoveBiota 0x{id:X8} failed first attempt with exception: {firstException.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] RemoveBiota 0x{id:X8} failed second attempt with exception: {ex.GetFullMessage()}");
                     return false;
                 }
             }
@@ -612,7 +691,8 @@ namespace ACE.Database
                 context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
 
                 var results = context.BiotaPropertiesPosition
-                    .Where(p => p.PositionType == 1 && p.ObjCellId >= min && p.ObjCellId <= max && p.ObjectId >= 0x80000000)
+                    .Where(p => p.PositionType == 1 && p.ObjCellId >= min && p.ObjCellId <= max &&
+                                p.ObjectId >= 0x80000000)
                     .ToList();
 
                 foreach (var result in results)
@@ -641,9 +721,10 @@ namespace ACE.Database
                 context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
 
                 var query = from biota in context.Biota
-                            join iid in context.BiotaPropertiesIID on biota.Id equals iid.ObjectId
-                            where biota.WeenieType == (int)WeenieType.SlumLord && iid.Type == (ushort)PropertyInstanceId.HouseOwner
-                            select biota;
+                    join iid in context.BiotaPropertiesIID on biota.Id equals iid.ObjectId
+                    where biota.WeenieType == (int)WeenieType.SlumLord &&
+                          iid.Type == (ushort)PropertyInstanceId.HouseOwner
+                    select biota;
 
                 var results = query.ToList();
 
@@ -666,7 +747,8 @@ namespace ACE.Database
             }
         }
 
-        private static readonly ConditionalWeakTable<Character, ShardDbContext> CharacterContexts = new ConditionalWeakTable<Character, ShardDbContext>();
+        private static readonly ConditionalWeakTable<Character, ShardDbContext> CharacterContexts =
+            new ConditionalWeakTable<Character, ShardDbContext>();
 
         public List<Character> GetCharacters(uint accountId, bool includeDeleted)
         {
@@ -718,7 +800,8 @@ namespace ACE.Database
             return results;
         }
 
-        public Character GetCharacterStubByName(string name) // When searching by name, only non-deleted characters matter
+        public Character
+            GetCharacterStubByName(string name) // When searching by name, only non-deleted characters matter
         {
             var context = new ShardDbContext();
 
@@ -753,7 +836,8 @@ namespace ACE.Database
                         cachedContext.SaveChanges();
 
                         if (firstException != null)
-                            log.Debug($"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                            log.Debug(
+                                $"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                         return true;
                     }
@@ -766,8 +850,10 @@ namespace ACE.Database
                         }
 
                         // Character name might be in use or some other fault
-                        log.Error($"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
-                        log.Error($"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
+                        log.Error(
+                            $"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
+                        log.Error(
+                            $"[DATABASE] SaveCharacter-1 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
                         return false;
                     }
                 }
@@ -794,7 +880,8 @@ namespace ACE.Database
                     context.SaveChanges();
 
                     if (firstException != null)
-                        log.Debug($"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                        log.Debug(
+                            $"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                     return true;
                 }
@@ -807,8 +894,10 @@ namespace ACE.Database
                     }
 
                     // Character name might be in use or some other fault
-                    log.Error($"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
-                    log.Error($"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] SaveCharacter-2 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
                     return false;
                 }
             }
@@ -819,7 +908,9 @@ namespace ACE.Database
         }
 
 
-        public bool AddCharacterInParallel(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim biotaLock, IEnumerable<(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim rwLock)> possessions, Character character, ReaderWriterLockSlim characterLock)
+        public bool AddCharacterInParallel(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim biotaLock,
+            IEnumerable<(ACE.Entity.Models.Biota biota, ReaderWriterLockSlim rwLock)> possessions, Character character,
+            ReaderWriterLockSlim characterLock)
         {
             if (!SaveBiota(biota, biotaLock))
                 return false; // Biota save failed which mean Character fails.
@@ -859,7 +950,8 @@ namespace ACE.Database
                         biotas.Add(convertedBiota);
                     }
                     else
-                        log.Error($"ShardDatabase.GetAllPlayerBiotasInParallel() - couldn't find biota for character 0x{result.Id:X8}");
+                        log.Error(
+                            $"ShardDatabase.GetAllPlayerBiotasInParallel() - couldn't find biota for character 0x{result.Id:X8}");
                 });
             }
 
@@ -871,9 +963,10 @@ namespace ACE.Database
             using (var context = new ShardDbContext())
             {
                 var query = from biota in context.Biota
-                            join iid in context.BiotaPropertiesIID on biota.Id equals iid.ObjectId
-                            where biota.WeenieType == (int)WeenieType.Allegiance && iid.Type == (int)PropertyInstanceId.Monarch && iid.Value == monarchID
-                            select biota.Id;
+                    join iid in context.BiotaPropertiesIID on biota.Id equals iid.ObjectId
+                    where biota.WeenieType == (int)WeenieType.Allegiance &&
+                          iid.Type == (int)PropertyInstanceId.Monarch && iid.Value == monarchID
+                    select biota.Id;
 
                 return query.FirstOrDefault();
             }
@@ -887,7 +980,7 @@ namespace ACE.Database
                 try
                 {
                     Exception firstException = null;
-                retry:
+                    retry:
 
                     try
                     {
@@ -895,7 +988,8 @@ namespace ACE.Database
                         cachedContext.SaveChanges();
 
                         if (firstException != null)
-                            log.Debug($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                            log.Debug(
+                                $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                         return true;
                     }
@@ -908,8 +1002,10 @@ namespace ACE.Database
                         }
 
                         // Character name might be in use or some other fault
-                        log.Error($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
-                        log.Error($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
+                        log.Error(
+                            $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
+                        log.Error(
+                            $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
                         return false;
                     }
                 }
@@ -931,14 +1027,15 @@ namespace ACE.Database
                 context.Character.Add(character);
 
                 Exception firstException = null;
-            retry:
+                retry:
 
                 try
                 {
                     context.SaveChanges();
 
                     if (firstException != null)
-                        log.Debug($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
+                        log.Debug(
+                            $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} retry succeeded after initial exception of: {firstException.GetFullMessage()}");
 
                     return true;
                 }
@@ -951,8 +1048,10 @@ namespace ACE.Database
                     }
 
                     // Character name might be in use or some other fault
-                    log.Error($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
-                    log.Error($"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed first attempt with exception: {firstException.GetFullMessage()}");
+                    log.Error(
+                        $"[DATABASE] RenameCharacter 0x{character.Id:X8}:{character.Name} failed second attempt with exception: {ex.GetFullMessage()}");
                     return false;
                 }
             }
@@ -987,7 +1086,8 @@ namespace ACE.Database
             return;
         }
 
-        public void LogCharacterLogin(uint accountId, string accountName, string sessionIP, uint characterId, string characterName)
+        public void LogCharacterLogin(uint accountId, string accountName, string sessionIP, uint characterId,
+            string characterName)
         {
             var logEntry = new CharacterLoginLog();
 
@@ -1033,6 +1133,297 @@ namespace ACE.Database
             catch (Exception ex)
             {
                 log.Error($"Exception in CreateKill saving kill data to PKKills DB. Ex: {ex}");
+            }
+        }
+
+        private List<ACE.Entity.Models.Consignment> GetConsignmentsFromResults(List<Consignment> results)
+        {
+            var consignments = new List<ACE.Entity.Models.Consignment>();
+
+            //Subtract 5 minutes from expiration time. These items can still be purchased but we'll no longer display them
+            var expireTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds()) - 300;
+
+            Parallel.ForEach(results, ConfigManager.Config.Server.Threading.DatabaseParallelOptions, result =>
+            {
+                var item = Adapter.BiotaConverter.ConvertToEntityBiota(GetBiota(result.ObjectId));
+
+                if (result.ExpireTime <= expireTime)
+                {
+                    var consignmentComplete = new ACE.Entity.Models.ConsignmentComplete();
+                    consignmentComplete.Id = result.Id;
+                    consignmentComplete.ObjectId = new ObjectGuid(result.ObjectId);
+                    consignmentComplete.WeenieClassId = item.WeenieClassId;
+                    consignmentComplete.SellerId = new ObjectGuid(result.SellerId);
+                    consignmentComplete.BuyerId = null;
+                    consignmentComplete.Price = result.Price;
+                    CreateConsignmentComplete(consignmentComplete);
+                    return;
+                }
+
+                var container = Adapter.BiotaConverter.ConvertToEntityBiota(
+                    GetBiota(item.PropertiesIID[PropertyInstanceId.Container])
+                );
+
+                var consignment = new ACE.Entity.Models.Consignment();
+                consignment.Id = result.Id;
+                consignment.ObjectId = new ObjectGuid(result.ObjectId);
+                consignment.SellerId = new ObjectGuid(result.SellerId);
+                consignment.Price = result.Price;
+                consignment.OriginalValue = result.OriginalValue;
+                consignment.ListTime = result.ListTime;
+                consignment.ExpireTime = result.ExpireTime;
+                consignment.Item = item;
+                consignment.Box = container;
+
+                consignments.Add(consignment);
+            });
+
+            return consignments;
+        }
+
+        private List<ACE.Entity.Models.ConsignmentComplete> GetConsignmentCompletesFromResults(List<ConsignmentComplete> results)
+        {
+            var consignmentCompletes = new List<ACE.Entity.Models.ConsignmentComplete>();
+
+            Parallel.ForEach(results, ConfigManager.Config.Server.Threading.DatabaseParallelOptions, result =>
+            {
+                var item = Adapter.BiotaConverter.ConvertToEntityBiota(GetBiota(result.ObjectId));
+                var container = Adapter.BiotaConverter.ConvertToEntityBiota(
+                    GetBiota(item.PropertiesIID[PropertyInstanceId.Container])
+                );
+
+                var consignmentComplete = new ACE.Entity.Models.ConsignmentComplete();
+                consignmentComplete.Id = result.Id;
+                consignmentComplete.ObjectId = new ObjectGuid(result.ObjectId);
+                consignmentComplete.SellerId = new ObjectGuid(result.SellerId);
+                consignmentComplete.BuyerId = result.BuyerId != null ? new ObjectGuid((uint)result.BuyerId) : null;
+                consignmentComplete.Price = result.Price;
+                consignmentComplete.SoldTime = result.SoldTime;
+                consignmentComplete.Item = item;
+                consignmentComplete.Box = container;
+
+                consignmentCompletes.Add(consignmentComplete);
+            });
+
+            return consignmentCompletes;
+        }
+
+        public List<ACE.Entity.Models.Consignment> GetConsignmentsByFilter(string filter)
+        {
+            using (var context = new ShardDbContext())
+            {
+                context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+
+                List<Consignment> results;
+                if (filter == null)
+                {
+                    results = context.Consignment.ToList();
+                }
+                else
+                {
+                    var query = from consignment in context.Consignment
+                        join biota in context.Biota
+                            on consignment.ObjectId equals biota.Id
+                        join name in context.BiotaPropertiesString
+                            on biota.Id equals name.ObjectId
+                        where name.Type == (uint)PropertyString.Name
+                              && name.Value.ToLower().Contains(filter.ToLower())
+                        select consignment;
+
+                    results = query.ToList();
+                }
+
+                return GetConsignmentsFromResults(results);
+            }
+        }
+
+        public List<ACE.Entity.Models.Consignment> GetConsignmentsBySellerId(uint id)
+        {
+            using (var context = new ShardDbContext())
+            {
+                context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+
+                var results = context.Consignment
+                    .Where(r => r.SellerId == id)
+                    .ToList();
+
+                return GetConsignmentsFromResults(results);
+            }
+        }
+
+        public List<ACE.Entity.Models.ConsignmentComplete> GetConsignmentCompletesBySellerId(uint id)
+        {
+            using (var context = new ShardDbContext())
+            {
+                context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+
+                var results = context.ConsignmentComplete
+                    .Where(r => r.SellerId == id)
+                    .ToList();
+
+                return GetConsignmentCompletesFromResults(results);
+            }
+        }
+
+        public ACE.Entity.Models.Consignment GetConsignmentByObjectId(uint id)
+        {
+            using (var context = new ShardDbContext())
+            {
+                context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+
+                var results = context.Consignment
+                    .Where(r => r.ObjectId == id)
+                    .ToList();
+
+                var consignments = GetConsignmentsFromResults(results);
+                return consignments.FirstOrDefault();
+            }
+        }
+
+        public ACE.Entity.Models.ConsignmentComplete GetConsignmentCompleteById(uint id)
+        {
+            using (var context = new ShardDbContext())
+            {
+                context.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
+
+                var results = context.ConsignmentComplete
+                    .Where(r => r.Id == id)
+                    .ToList();
+
+                var consignmentCompletes = GetConsignmentCompletesFromResults(results);
+                return consignmentCompletes.FirstOrDefault();
+            }
+        }
+
+        public void CreateConsignment(ACE.Entity.Models.Consignment consignment)
+        {
+            var dbConsignment = new Consignment();
+            dbConsignment.ObjectId = consignment.ObjectId.Full;
+            dbConsignment.SellerId = consignment.SellerId.Full;
+            dbConsignment.Price = consignment.Price;
+            dbConsignment.OriginalValue = consignment.OriginalValue;
+            dbConsignment.ListTime = consignment.ListTime;
+            dbConsignment.ExpireTime = consignment.ExpireTime;
+
+            try
+            {
+                using (var context = new ShardDbContext())
+                {
+                    context.Consignment.Add(dbConsignment);
+                    context.SaveChanges();
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Exception in CreateConsignment saving consignment to DB. Ex: {ex}");
+            }
+        }
+
+        public bool RemoveConsignment(ACE.Entity.Models.Consignment consignment)
+        {
+            var dbConsignment = new Consignment();
+            dbConsignment.Id = consignment.Id;
+
+            try
+            {
+                using (var context = new ShardDbContext())
+                {
+                    context.Consignment.Remove(dbConsignment);
+                    context.SaveChanges();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Exception in RemoveConsignment removing consignment to DB. Ex: {ex}");
+                return false;
+            }
+        }
+
+        public bool CreateConsignmentComplete(ACE.Entity.Models.ConsignmentComplete consignmentComplete)
+        {
+            var dbConsignmentComplete = new ConsignmentComplete();
+            dbConsignmentComplete.Id = consignmentComplete.Id;
+            dbConsignmentComplete.ObjectId = consignmentComplete.ObjectId.Full;
+            dbConsignmentComplete.WeenieClassId = consignmentComplete.WeenieClassId;
+            dbConsignmentComplete.SellerId = consignmentComplete.SellerId.Full;
+            dbConsignmentComplete.BuyerId = consignmentComplete.BuyerId?.Full;
+            dbConsignmentComplete.Price = consignmentComplete.Price;
+            dbConsignmentComplete.SoldTime = consignmentComplete.SoldTime;
+
+            var dbConsignment = new Consignment();
+            dbConsignment.Id = consignmentComplete.Id;
+
+            try
+            {
+                using (var context = new ShardDbContext())
+                {
+                    context.ConsignmentComplete.Add(dbConsignmentComplete);
+                    context.Consignment.Remove(dbConsignment);
+                    context.SaveChanges();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Exception in CreateConsignmentComplete saving consignment to DB. Ex: {ex}");
+                return false;
+            }
+        }
+
+        public bool RemoveConsignmentComplete(ACE.Entity.Models.ConsignmentComplete consignmentComplete)
+        {
+            var dbConsignmentComplete = new ConsignmentComplete();
+            dbConsignmentComplete.Id = consignmentComplete.Id;
+
+            try
+            {
+                using (var context = new ShardDbContext())
+                {
+                    context.ConsignmentComplete.Remove(dbConsignmentComplete);
+                    context.SaveChanges();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Exception in RemoveConsignmentComplete removing consignment to DB. Ex: {ex}");
+                return false;
+            }
+        }
+
+        public bool ReListConsignment(ACE.Entity.Models.ConsignmentComplete consignmentComplete)
+        {
+            var dbConsignmentComplete = new ConsignmentComplete();
+            dbConsignmentComplete.Id = consignmentComplete.Id;
+
+            var dbConsignment = new Consignment();
+            dbConsignment.Id = consignmentComplete.Id;
+            dbConsignment.ObjectId = consignmentComplete.ObjectId.Full;
+            dbConsignment.SellerId = consignmentComplete.SellerId.Full;
+            dbConsignment.Price = consignmentComplete.Price;
+            dbConsignment.OriginalValue = consignmentComplete.Item.PropertiesInt[PropertyInt.Value];
+            dbConsignment.ListTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds());
+            dbConsignment.ExpireTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds()) + 86400 * 3;
+
+            try
+            {
+                using (var context = new ShardDbContext())
+                {
+                    context.ConsignmentComplete.Remove(dbConsignmentComplete);
+                    context.Consignment.Add(dbConsignment);
+                    context.SaveChanges();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Exception in ReListConsignment relisting consignment to DB. Ex: {ex}");
+                return false;
             }
         }
     }

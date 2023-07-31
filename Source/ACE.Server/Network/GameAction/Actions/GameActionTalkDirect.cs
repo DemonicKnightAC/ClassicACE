@@ -46,6 +46,11 @@ namespace ACE.Server.Network.GameAction.Actions
                 var tell = new GameEventTell(targetPlayer.Session, message, session.Player.GetNameWithSuffix(), session.Player.Guid.Full, targetPlayer.Guid.Full, ChatMessageType.Tell);
                 targetPlayer.Session.Network.EnqueueSend(tell);
             }
+            else if (creature.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentvendor)
+            { //Emotes don't handle dynamic messages. Searching consignments requires dynamic messages.
+                var vendor = creature as Vendor;
+                vendor!.ApproachVendor(session.Player, VendorType.Open, 0, message);
+            }
             else
                 creature.EmoteManager.OnTalkDirect(session.Player, message);
         }

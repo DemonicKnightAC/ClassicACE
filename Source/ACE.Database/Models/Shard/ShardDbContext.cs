@@ -57,6 +57,8 @@ namespace ACE.Database.Models.Shard
         public virtual DbSet<ConfigPropertiesDouble> ConfigPropertiesDouble { get; set; }
         public virtual DbSet<ConfigPropertiesLong> ConfigPropertiesLong { get; set; }
         public virtual DbSet<ConfigPropertiesString> ConfigPropertiesString { get; set; }
+        public virtual DbSet<Consignment> Consignment { get; set; }
+        public virtual DbSet<ConsignmentComplete> ConsignmentComplete { get; set; }
         public virtual DbSet<HousePermission> HousePermission { get; set; }
         public virtual DbSet<AccountSessionLog> AccountSessions { get; set; }
         public virtual DbSet<CharacterLoginLog> CharacterLogins { get; set; }
@@ -1565,6 +1567,66 @@ namespace ACE.Database.Models.Shard
                     .IsRequired()
                     .HasColumnType("text")
                     .HasColumnName("value");
+            });
+
+            modelBuilder.Entity<Consignment>(entity =>
+            {
+                entity.HasKey(e => e.Id)
+                    .HasName("PRIMARY");
+
+                entity.ToTable("consignment");
+
+                entity.HasIndex(e => e.ObjectId, "consignment_object_unique").IsUnique();
+                entity.HasIndex(e => e.SellerId, "consignment_seller_idx");
+                entity.HasIndex(e => e.ExpireTime, "consignment_expire_idx");
+
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.ObjectId).HasColumnName("object_Id");
+                entity.Property(e => e.SellerId).HasColumnName("seller_Id");
+                entity.Property(e => e.Price).HasColumnName("price");
+                entity.Property(e => e.OriginalValue).HasColumnName("original_value");
+                entity.Property(e => e.ListTime).HasColumnName("list_Time");
+                entity.Property(e => e.ExpireTime).HasColumnName("expire_Time");
+
+                entity.HasOne(d => d.Object)
+                    .WithMany(p => p.Consignment)
+                    .HasForeignKey(d => d.ObjectId)
+                    .HasConstraintName("FK_object_Id");
+
+                entity.HasOne(d => d.Seller)
+                    .WithMany(p => p.Consignment)
+                    .HasForeignKey(d => d.SellerId)
+                    .HasConstraintName("FK_character_Id");
+            });
+
+            modelBuilder.Entity<ConsignmentComplete>(entity =>
+            {
+                entity.HasKey(e => e.Id)
+                    .HasName("PRIMARY");
+
+                entity.ToTable("consignment_complete");
+
+                entity.HasIndex(e => e.ObjectId, "consignment_object_idx");
+                entity.HasIndex(e => e.SellerId, "consignment_seller_idx");
+                entity.HasIndex(e => e.BuyerId, "consignment_buyer_idx");
+
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.ObjectId).HasColumnName("object_Id");
+                entity.Property(e => e.WeenieClassId).HasColumnName("weenie_Class_Id");
+                entity.Property(e => e.SellerId).HasColumnName("seller_Id");
+                entity.Property(e => e.BuyerId).HasColumnName("buyer_Id");
+                entity.Property(e => e.Price).HasColumnName("price");
+                entity.Property(e => e.SoldTime).HasColumnName("sold_Time");
+
+                entity.HasOne(d => d.Object)
+                    .WithMany(p => p.ConsignmentComplete)
+                    .HasForeignKey(d => d.ObjectId)
+                    .HasConstraintName("FK_object_Id");
+
+                entity.HasOne(d => d.Seller)
+                    .WithMany(p => p.ConsignmentComplete)
+                    .HasForeignKey(d => d.SellerId)
+                    .HasConstraintName("FK_character_Id");
             });
 
             modelBuilder.Entity<HousePermission>(entity =>

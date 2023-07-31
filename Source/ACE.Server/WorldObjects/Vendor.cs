@@ -64,7 +64,7 @@ namespace ACE.Server.WorldObjects
     /// ** Buy Data Flow **
     ///
     /// Player.HandleActionBuyItem -> Vendor.BuyItems_ValidateTransaction -> Player.FinalizeBuyTransaction -> Vendor.BuyItems_FinalTransaction
-    ///     
+    ///
     /// </summary>
     public class Vendor : Creature
     {
@@ -295,6 +295,11 @@ namespace ACE.Server.WorldObjects
             var player = wo as Player;
             if (player == null) return;
 
+            OpenVendor(player);
+        }
+
+        private void OpenVendor(Player player, string filter = null)
+        {
             if (player.IsBusy)
             {
                 player.SendWeenieError(WeenieError.YoureTooBusy);
@@ -315,7 +320,7 @@ namespace ACE.Server.WorldObjects
             actionChain.AddDelaySeconds(0.001f);  // force to run after rotate.EnqueueBroadcastAction
             actionChain.AddAction(this, LoadInventory);
             actionChain.AddDelaySeconds(rotateTime);
-            actionChain.AddAction(this, () => ApproachVendor(player, VendorType.Open));
+            actionChain.AddAction(this, () => ApproachVendor(player, VendorType.Open, 0, filter));
             actionChain.EnqueueChain();
 
             if (lastPlayerInfo == null)
@@ -346,14 +351,16 @@ namespace ACE.Server.WorldObjects
 
         public void UpdateHappyVendor()
         {
+            BuyPriceMod = 0.0f;
+            SellPriceMod = 0.0f;
+
+            if (WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentvendor)
+                return;
+
             int vendorHappyMean = (VendorHappyMean ?? 0) * Math.Min(MerchandiseMaxValue ?? 3000, 50000) / 3;
             int vendorHappyVariance = (VendorHappyVariance ?? 0) * Math.Min(MerchandiseMaxValue ?? 3000, 50000) / 3;
             if (vendorHappyMean == 0)
-            {
-                BuyPriceMod = 0.0f;
-                SellPriceMod = 0.0f;
                 return;
-            }
 
             int currentVendorHappyThreshold = ThreadSafeRandom.Next(vendorHappyMean, vendorHappyMean + vendorHappyVariance);
             double priceMod = Math.Clamp((RecentMoneyIncome + RecentMoneyOutflow) / (float)currentVendorHappyThreshold * 0.1f, 0.0f, 0.1f);
@@ -366,11 +373,19 @@ namespace ACE.Server.WorldObjects
         /// Sends the latest vendor inventory list to player, rotates vendor towards player, and performs the appropriate emote.
         /// </summary>
         /// <param name="action">The action performed by the player</param>
-        public void ApproachVendor(Player player, VendorType action = VendorType.Undef, uint altCurrencySpent = 0)
+        public void ApproachVendor(Player player, VendorType action = VendorType.Undef, uint altCurrencySpent = 0, string filter = null)
         {
             if(VendorPKOnly && player.PlayerKillerStatus != PlayerKillerStatus.PK)
             {
                 player.Session.Network.EnqueueSend(new GameEventTell(this, "Come back when you're not under Asheron's protection or Bael'Zharon's respite.", player, ChatMessageType.Tell));
+                return;
+            }
+
+            player.LastVendorFilter = filter;
+
+            if (WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentvendor)
+            {
+                LoadConsignments(player, filter);
                 return;
             }
 
@@ -387,6 +402,124 @@ namespace ACE.Server.WorldObjects
                 DoVendorEmote(action, player);
 
             player.LastOpenedContainerId = Guid;
+        }
+
+        private void LoadConsignments(Player player, string filter)
+        {
+            UniqueItemsForSale.Clear();
+            switch (filter)
+            {
+                case "manage":
+                    LoadConsignmentsForSeller(player);
+                    break;
+                case "relist":
+                    ReListConsignments(player);
+                    break;
+                default:
+                    LoadConsignmentsForBuyer(player, filter);
+                    break;
+            }
+        }
+
+        private void LoadConsignmentsForSeller(Player player)
+        {
+            DatabaseManager.Shard.GetConsignmentsBySellerId(player.Guid.Full, consignments =>
+            {
+                LoadConsignments(player, consignments);
+            });
+
+            DatabaseManager.Shard.GetConsignmentCompletesBySellerId(player.Guid.Full, consignmentCompletes =>
+            {
+                LoadConsignmentCompletes(player, consignmentCompletes);
+            });
+        }
+
+        private void LoadConsignmentsForBuyer(Player player, string filter)
+        {
+            DatabaseManager.Shard.GetConsignmentsByFilter(filter, consignments =>
+            {
+                LoadConsignments(player, consignments);
+            });
+        }
+
+        private void LoadConsignments(Player player, List<Consignment> consignments)
+        {
+            foreach (var consignment in consignments)
+            {
+                var item =  WorldObjectFactory.CreateWorldObject(consignment.Item);
+                var desc = item.GetProperty(PropertyString.LongDesc);
+                item.Container = WorldObjectFactory.CreateWorldObject(consignment.Box) as Container;
+
+                //Overriding the value is a bit of a hack due ot client limitations. It is undone when the item is sold.
+                if (player.Guid == consignment.SellerId)
+                    item.SetProperty(PropertyInt.Value, 0);
+                else
+                    item.SetProperty(PropertyInt.Value, (int)consignment.Price);
+                item.SetProperty(PropertyString.LongDesc, $"{desc}\nOriginal Value: {consignment.OriginalValue}");
+
+                UniqueItemsForSale.Add(item.Guid, item);
+            }
+
+            player.Session.Network.EnqueueSend(new GameEventApproachVendor(player.Session, this, 0));
+
+            Rotate(player);
+
+            player.LastOpenedContainerId = Guid;
+        }
+
+        private void LoadConsignmentCompletes(Player player, List<ConsignmentComplete> consignmentCompletes)
+        {
+            foreach (var consignmentComplete in consignmentCompletes)
+            {
+                var item =  WorldObjectFactory.CreateWorldObject(consignmentComplete.Item);
+                item.Container = WorldObjectFactory.CreateWorldObject(consignmentComplete.Box) as Container;
+
+                if (consignmentComplete.SoldTime > 0)
+                {
+                    AddPayoutSack(consignmentComplete, item);
+                }
+                else
+                {
+                    item.IconOverlayId = 0x060011F8;
+                    UniqueItemsForSale.Add(item.Guid, item);
+                }
+            }
+
+            player.Session.Network.EnqueueSend(new GameEventApproachVendor(player.Session, this, 0));
+
+            Rotate(player);
+
+            player.LastOpenedContainerId = Guid;
+        }
+
+        public void AddPayoutSack(ConsignmentComplete consignmentComplete, WorldObject item)
+        {
+            var payout = (uint)Math.Round(consignmentComplete.Price * 0.9);
+            var paymentSack = (Container)WorldObjectFactory
+                .CreateNewWorldObject((uint)Factories.Enum.WeenieClassName.customdm_consignmentpaymentsack);
+            paymentSack.ConsignmentComplete = consignmentComplete;
+            paymentSack.ContainerId = Guid.Full;
+            paymentSack.Container = this;
+            paymentSack.LongDesc = $"This sack contains {payout} pyreals in payment for the sale of {item.Name}.";
+
+            UniqueItemsForSale.Add(paymentSack.Guid, paymentSack);
+        }
+
+        public void ReListConsignments(Player player)
+        {
+            //Calling this just to handle any pending expiration migrations
+            DatabaseManager.Shard.GetConsignmentsBySellerId(player.Guid.Full, consignment => { });
+
+            DatabaseManager.Shard.GetConsignmentCompletesBySellerId(player.Guid.Full, consignmentCompletes =>
+            {
+                foreach (var consignmentComplete in consignmentCompletes)
+                {
+                    if (consignmentComplete.SoldTime > 0)
+                        return;
+
+                    DatabaseManager.Shard.ReListConsignment(consignmentComplete, result => {});
+                }
+            });
         }
 
         public void DoVendorEmote(VendorType vendorType, WorldObject player)
@@ -418,7 +551,7 @@ namespace ACE.Server.WorldObjects
         /// <summary>
         /// After a player approaches a vendor, this is called every closeInterval seconds
         /// to see if the player is still within the UseRadius of the vendor.
-        /// 
+        ///
         /// If the player has moved away, the vendor Close emote is called (waving goodbye, saying farewell)
         /// </summary>
         public void CheckClose()
@@ -615,52 +748,7 @@ namespace ACE.Server.WorldObjects
 
                 // detect rollover?
                 totalPrice += cost;
-
-                if (Common.ConfigManager.Config.Server.WorldRuleset == Common.Ruleset.CustomDM)
-                {
-                    CreatureSkill appraisalSkill = player.GetCreatureSkill(Skill.Appraise);
-                    if (appraisalSkill.AdvancementClass >= SkillAdvancementClass.Trained)
-                    {
-                        if (item.ItemType != ItemType.PromissoryNote)
-                        {
-                            var unitCost = cost / item.StackSize ?? 1;
-                            var diff1 = 50 + (uint)Math.Sqrt(Math.Min(unitCost, 250000));
-                            var diff2 = diff1 + 50;
-                            var diff3 = diff2 + 50;
-                            var chance1 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff1);
-                            var chance2 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff2);
-                            var chance3 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff3);
-                            var roll = ThreadSafeRandom.Next(0.0f, 1.0f);
-
-                            if (chance3 > roll)
-                            {
-                                Proficiency.OnSuccessUse(player, appraisalSkill, diff3);
-
-                                totalPriceAfterHaggling += (uint)Math.Max(Math.Ceiling(cost * 0.85f), 1);
-                            }
-                            else if (chance2 > roll)
-                            {
-                                Proficiency.OnSuccessUse(player, appraisalSkill, diff2);
-
-                                totalPriceAfterHaggling += (uint)Math.Max(Math.Ceiling(cost * 0.90f), 1);
-                            }
-                            else if (chance1 > roll)
-                            {
-                                Proficiency.OnSuccessUse(player, appraisalSkill, diff1);
-
-                                totalPriceAfterHaggling += (uint)Math.Max(Math.Ceiling(cost * 0.95f), 1);
-                            }
-                            else
-                                totalPriceAfterHaggling += cost;
-                        }
-                        else
-                            totalPriceAfterHaggling += cost;
-                    }
-                    else
-                        totalPriceAfterHaggling += cost;
-                }
-                else
-                    totalPriceAfterHaggling += cost;
+                totalPriceAfterHaggling += GetHaggledCost(player, item, cost);
             }
 
             if(totalPriceAfterHaggling != totalPrice)
@@ -669,24 +757,10 @@ namespace ACE.Server.WorldObjects
                 totalPrice = totalPriceAfterHaggling;
             }
 
-            // verify player has enough currency
-            if (AlternateCurrency == null)
+            if (ValidatePlayerHasBalance(player, totalPrice) == false)
             {
-                if (player.CoinValue < totalPrice)
-                {
-                    CleanupCreatedItems(defaultItems);
-                    return false;
-                }
-            }
-            else
-            {
-                var playerAltCurrency = player.GetNumInventoryItemsOfWCID(AlternateCurrency.Value);
-
-                if (playerAltCurrency < totalPrice)
-                {
-                    CleanupCreatedItems(defaultItems);
-                    return false;
-                }
+                CleanupCreatedItems(defaultItems);
+                return false;
             }
 
             // everything is verified at this point
@@ -695,6 +769,80 @@ namespace ACE.Server.WorldObjects
             player.FinalizeBuyTransaction(this, defaultItems, uniqueItems, totalPrice);
 
             return true;
+        }
+
+        private bool ValidatePlayerHasBalance(Player player, uint totalPrice)
+        {
+            if (WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentvendor)
+            {
+                if (player.CoinValue >= totalPrice)
+                    return true;
+
+                var notesNeeded = (uint)Math.Floor((double)totalPrice / 250000);
+                var remainder = totalPrice % 250000;
+                var notesOwned = player.GetNumInventoryItemsOfWCID((uint)Factories.Enum.WeenieClassName.tradenote250000);
+                if (notesOwned >= notesNeeded && player.CoinValue > remainder)
+                    return true;
+            }
+
+            if (AlternateCurrency == null)
+            {
+                if (player.CoinValue >= totalPrice)
+                    return true;
+            }
+            else
+            {
+                var playerAltCurrency = player.GetNumInventoryItemsOfWCID(AlternateCurrency.Value);
+                if (playerAltCurrency >= totalPrice)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private uint GetHaggledCost(Player player, WorldObject item, uint cost)
+        {
+            if (Common.ConfigManager.Config.Server.WorldRuleset != Common.Ruleset.CustomDM)
+                return cost;
+
+            CreatureSkill appraisalSkill = player.GetCreatureSkill(Skill.Appraise);
+            if (appraisalSkill.AdvancementClass < SkillAdvancementClass.Trained)
+                return cost;
+
+            if (item.ItemType == ItemType.PromissoryNote)
+                return cost;
+
+            if (item.Container != null && item.Container.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmentbox)
+                return cost;
+
+            var unitCost = cost / item.StackSize ?? 1;
+            var diff1 = 50 + (uint)Math.Sqrt(Math.Min(unitCost, 250000));
+            var diff2 = diff1 + 50;
+            var diff3 = diff2 + 50;
+            var roll = ThreadSafeRandom.Next(0.0f, 1.0f);
+
+            var chance3 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff3);
+            if (chance3 > roll)
+            {
+                Proficiency.OnSuccessUse(player, appraisalSkill, diff3);
+                return (uint)Math.Max(Math.Ceiling(cost * 0.85f), 1);
+            }
+
+            var chance2 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff2);
+            if (chance2 > roll)
+            {
+                Proficiency.OnSuccessUse(player, appraisalSkill, diff2);
+                return (uint)Math.Max(Math.Ceiling(cost * 0.90f), 1);
+            }
+
+            var chance1 = SkillCheck.GetSkillChance(appraisalSkill.Current, diff1);
+            if (chance1 > roll)
+            {
+                Proficiency.OnSuccessUse(player, appraisalSkill, diff1);
+                return (uint)Math.Max(Math.Ceiling(cost * 0.95f), 1);
+            }
+
+            return cost;
         }
 
         public uint GetSellCost(WorldObject item) => GetSellCost(item.Value, item.ItemType);
@@ -1132,7 +1280,7 @@ namespace ACE.Server.WorldObjects
                     added++;
                 }
             }
-            
+
             UniqueItemsForSale = new Dictionary<ObjectGuid, WorldObject>(UniqueItemsForSale.OrderBy(key => key.Value, VendorItemComparer));
         }
         public void BroadcastStock(bool world = false)

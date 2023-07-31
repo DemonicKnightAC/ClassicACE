@@ -968,7 +968,7 @@ namespace ACE.Server.WorldObjects
         }
 
         // =========================================
-        // Game Action Handlers - Inventory Movement 
+        // Game Action Handlers - Inventory Movement
         // =========================================
 
         /// <summary>
@@ -1671,7 +1671,7 @@ namespace ACE.Server.WorldObjects
                     }
                 }
                 else // Unwield wand/missile launcher/two-handed if dual wielding
-                {                  
+                {
                     if (Common.ConfigManager.Config.Server.WorldRuleset == Common.Ruleset.Infiltration)
                     {
                         Session.Network.EnqueueSend(new GameEventInventoryServerSaveFailed(Session, item.Guid.Full));
@@ -1887,7 +1887,7 @@ namespace ACE.Server.WorldObjects
 
         /// <summary>
         /// Client will automatically send any unequip (PutItemInContainer) message before the GetAndWield, but misses some instances and can be memory hacked to ignore others.
-        //  Let's just make sure our status is accurate before actually equipping an item! 
+        //  Let's just make sure our status is accurate before actually equipping an item!
         /// </summary>
         /// <param name="item">The weapon we are attempting to equip</param>
         /// <returns>True if the items were successfuly remove and the new item can attempt to be equipped, otherwise false</returns>
@@ -2297,7 +2297,7 @@ namespace ACE.Server.WorldObjects
 
 
         // =========================================
-        // Game Action Handlers - Inventory Stacking 
+        // Game Action Handlers - Inventory Stacking
         // =========================================
 
         /// <summary>
@@ -2395,7 +2395,7 @@ namespace ACE.Server.WorldObjects
                 Session.Network.EnqueueSend(new GameEventInventoryServerSaveFailed(Session, stackId));
                 return;
             }
-            
+
             ItemType containerValidTypes = (ItemType)(container.MerchandiseItemTypes ?? 0);
             if (containerValidTypes != 0 && (stack.ItemType & containerValidTypes) == 0)
             {
@@ -3033,7 +3033,7 @@ namespace ACE.Server.WorldObjects
 
 
         // =============================================
-        // Game Action Handlers - Inventory Give/Receive 
+        // Game Action Handlers - Inventory Give/Receive
         // =============================================
 
         /// <summary>
@@ -3263,6 +3263,12 @@ namespace ACE.Server.WorldObjects
             {
                 if (acceptAll || (emoteResult.Category == EmoteCategory.Give && target.AllowGive))
                 {
+                    if (target.WeenieClassId == (uint)Factories.Enum.WeenieClassName.customdm_consignmenttable)
+                    {
+                        HandleConsignment(item, target, itemRootOwner);
+                        return;
+                    }
+
                     // for NPCs that accept items with EmoteCategory.Give,
                     // if stacked item, only give 1, ignoring amount indicated, unless they are AiAcceptEverything in which case, take full amount indicated
                     if (RemoveItemForGive(item, itemFoundInContainer, itemWasEquipped, itemRootOwner, acceptAll ? amount : 1, out WorldObject itemToGive))
@@ -3301,7 +3307,7 @@ namespace ACE.Server.WorldObjects
             else
             {
                 if (item.WeenieType == WeenieType.Deed && target.AllowGive && target.AiAcceptEverything) // http://acpedia.org/wiki/Housing_FAQ#House_deeds
-                {                    
+                {
                     var stackSize = item.StackSize ?? 1;
 
                     var stackMsg = stackSize != 1 ? $"{stackSize} " : "";
@@ -3318,6 +3324,109 @@ namespace ACE.Server.WorldObjects
                 Session.Network.EnqueueSend(new GameEventWeenieErrorWithString(Session, (WeenieErrorWithString)WeenieError.TradeAiDoesntWant, target.Name));
                 Session.Network.EnqueueSend(new GameEventInventoryServerSaveFailed(Session, item.Guid.Full));
             }
+        }
+
+        private void HandleConsignment(WorldObject wo, WorldObject target, Container itemRootOwner)
+        {
+            if (!ValidateConsignment(wo, out Container box, out WorldObject item))
+                return;
+
+            if (!TryRemoveFromInventoryWithNetworking(box.Guid, out _, RemoveFromInventoryAction.GiveItem))
+            {
+                Session.Network.EnqueueSend(new GameEventCommunicationTransientString(Session, "TryRemoveFromInventoryWithNetworking failed!"));
+                Session.Network.EnqueueSend(new GameEventInventoryServerSaveFailed(Session, box.Guid.Full));
+                return;
+            }
+
+            var stackSize = item.StackSize ?? 1;
+            var name = item.GetProperty(PropertyString.Name);
+            var inscription = box.GetProperty(PropertyString.Inscription);
+            var price = Convert.ToUInt32(inscription);
+            var originalValue = item.GetProperty(PropertyInt.Value) ?? 0;
+
+            if (stackSize > 1)
+            {
+                name = GetPluralName();
+            }
+
+            var msg = $"You have listed {stackSize:N0} {name} for sale for {price:N0} total pyreals.";
+            Session.Network.EnqueueSend(new GameMessageSystemChat(msg, ChatMessageType.Broadcast));
+            target.EnqueueBroadcast(new GameMessageSound(target.Guid, Sound.ReceiveItem));
+
+            var consignment = new Consignment();
+            consignment.ObjectId = item.Guid;
+            consignment.SellerId = itemRootOwner.Guid;
+            consignment.Price = price;
+            consignment.OriginalValue = originalValue;
+            consignment.ListTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds());
+            consignment.ExpireTime = Convert.ToUInt32(DateTimeOffset.Now.ToUnixTimeSeconds()) + 86400 * 3;
+
+            DatabaseManager.Shard.CreateConsignment(consignment);
+        }
+
+        private bool ValidateConsignment(WorldObject wo, out Container box, out WorldObject item)
+        {
+            box = null;
+            item = null;
+
+            if (wo.WeenieClassId != (uint)Factories.Enum.WeenieClassName.customdm_consignmentbox)
+            {
+                HandleGiveError("You must put your item in a Consignment Box before giving it to the Consignment Table.", wo);
+                return false;
+            }
+
+            box = wo as Container;
+            var inscription = box.GetProperty(PropertyString.Inscription);
+            if (string.IsNullOrEmpty(inscription))
+            {
+                HandleGiveError("You must inscribe the Consignment Box with the price.", box);
+                return false;
+            }
+
+            if (!inscription.All(char.IsDigit))
+            {
+                HandleGiveError("The Consignment Box inscription may only contain a numbers.", box);
+                return false;
+            }
+
+            if (int.Parse(inscription) <= 0)
+            {
+                HandleGiveError("The price must be greater than 0.", box);
+                return false;
+            }
+
+            if (int.Parse(inscription) > 1000000000)
+            {
+                HandleGiveError("The price can not be greater than 1000000000.", box);
+                return false;
+            }
+
+            item = box.Inventory.Values.FirstOrDefault();
+            if (item == null)
+            {
+                HandleGiveError("The Consignment Box must have an item in it to list for sale.", box);
+                return false;
+            }
+
+            if (item.GetProperty(PropertyBool.Retained) == true)
+            {
+                HandleGiveError("The item in this Consignment Box is retained.", box);
+                return false;
+            }
+
+            if (item.IsAttunedOrContainsAttuned)
+            {
+                HandleGiveError("The item in this Consignment Box is attuned.", box);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void HandleGiveError(String error, WorldObject item)
+        {
+            Session.Network.EnqueueSend(new GameMessageSystemChat(error, ChatMessageType.Broadcast));
+            Session.Network.EnqueueSend(new GameEventInventoryServerSaveFailed(Session, item.Guid.Full, WeenieError.TradeAiRefuseEmote));
         }
 
         private void HandleIOUTurnIn(WorldObject target, WorldObject iouToTurnIn)
@@ -3562,7 +3671,7 @@ namespace ACE.Server.WorldObjects
             Prev_PutItemInContainer[1] = Prev_PutItemInContainer[0];
             Prev_PutItemInContainer[0] = new PutItemInContainerEvent(itemGuid, containerGuid, placement);
         }
-        
+
         public void GiveFromEmote(WorldObject emoter, uint weenieClassId, int amount = 1, int palette = 0, float shade = 0)
         {
             if (emoter is null || weenieClassId == 0)

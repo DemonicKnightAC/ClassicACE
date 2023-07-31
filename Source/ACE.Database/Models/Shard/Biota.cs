@@ -32,6 +32,8 @@ namespace ACE.Database.Models.Shard
             BiotaPropertiesSpellBook = new HashSet<BiotaPropertiesSpellBook>();
             BiotaPropertiesString = new HashSet<BiotaPropertiesString>();
             BiotaPropertiesTextureMap = new HashSet<BiotaPropertiesTextureMap>();
+            Consignment = new HashSet<Consignment>();
+            ConsignmentComplete = new HashSet<ConsignmentComplete>();
             HousePermission = new HashSet<HousePermission>();
         }
 
@@ -65,6 +67,8 @@ namespace ACE.Database.Models.Shard
         public virtual ICollection<BiotaPropertiesSpellBook> BiotaPropertiesSpellBook { get; set; }
         public virtual ICollection<BiotaPropertiesString> BiotaPropertiesString { get; set; }
         public virtual ICollection<BiotaPropertiesTextureMap> BiotaPropertiesTextureMap { get; set; }
+        public virtual ICollection<Consignment> Consignment { get; set; }
+        public virtual ICollection<ConsignmentComplete> ConsignmentComplete { get; set; }
         public virtual ICollection<HousePermission> HousePermission { get; set; }
     }
 }

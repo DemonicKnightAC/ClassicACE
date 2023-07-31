@@ -96,6 +96,8 @@ namespace ACE.Server.WorldObjects
         public EmoteManager EmoteManager;
         public EnchantmentManagerWithCaching EnchantmentManager;
 
+        public ConsignmentComplete ConsignmentComplete { get; set; }
+
         // todo: move these to a base projectile class
         public WorldObject ProjectileSource { get; set; }
         public WorldObject ProjectileTarget { get; set; }
@@ -255,11 +257,13 @@ namespace ACE.Server.WorldObjects
         }
 
         private void SetEphemeralValues()
-        { 
+        {
             ObjectDescriptionFlags = ObjectDescriptionFlag.Attackable;
 
             EmoteManager = new EmoteManager(this);
             EnchantmentManager = new EnchantmentManagerWithCaching(this);
+
+            ConsignmentComplete = null;
 
             if (Placement == null)
                 Placement = ACE.Entity.Enum.Placement.Resting;
@@ -284,7 +288,7 @@ namespace ACE.Server.WorldObjects
             {
                 emote = refuseItem;
                 return true;
-            }            
+            }
 
             // NPC accepts this item
             var giveItem = EmoteManager.GetEmoteSet(EmoteCategory.Give, null, null, item.WeenieClassId);
@@ -583,7 +587,7 @@ namespace ACE.Server.WorldObjects
                         break;
                     case "linkedlifestone":
                         sb.AppendLine($"{prop.Name} = {obj.LinkedLifestone.ToLOCString()}");
-                        break;                    
+                        break;
                     case "channelsactive":
                         sb.AppendLine($"{prop.Name} = {(Channel)obj.GetProperty(PropertyInt.ChannelsActive)}" + " (" + (uint)obj.GetProperty(PropertyInt.ChannelsActive) + ")");
                         break;

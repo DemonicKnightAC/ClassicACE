@@ -41886,5 +41886,10 @@ namespace ACE.Server.Factories.Enum
         ace87830_olthoislasher = 87830,
         ace87831_surface = 87831,
         ace87832_rootsofskuldgenerator = 87832,
+
+        customdm_consignmentvendor = 1000000,
+        customdm_consignmenttable = 1000001,
+        customdm_consignmentbox = 1000002,
+        customdm_consignmentpaymentsack = 1000003,
     }
 }

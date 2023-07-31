@@ -1,0 +1,215 @@
+Tinkering that switches element of a weapon
+
+Onyx - Remove
+Yellow Garnet - Slash
+White Jade - Pierce
+Obsidian - Bludge
+Tiger Eye - Fire
+White Quartz - Frost
+Serpentine - Acid
+Amethyst - Lightning
+
+TODO:
+
+Axes:
+301
+303
+359
+357
+344
+342
+336
+41052
+
+Daggers:
+329
+314
+319
+328
+22440
+
+Maces:
+309
+331
+325
+313
+321
+356
+332
+7768
+41057
+41062
+40635
+
+Spear:
+348
+308
+362
+7772
+7771
+41046
+41036
+41041
+
+Staves:
+338*
+333
+322
+22168
+22163
+22158
+
+Swords:
+352
+339**
+351
+350
+345
+324
+340
+354
+361
+327
+353
+40618
+41067
+40760
+
+Unarmed:
+326
+4190
+4195
+
+Atlatls:
+29258
+
+Bows:
+29244
+
+Crossbows:
+29251
+
+Wands:
+29265
+
+Thrown:
+316
+304
+310
+315
+320
+343
+317
+
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the yellow garnet.", 0, 0, "You apply the yellow garnet, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524181, 0, 0, <sID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <aID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21087, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the white jade.", 0, 0, "You apply the white jade, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524181, 0, 0, <pID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <aID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21084, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the obsidian.", 0, 0, "You apply the obsidian, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524182, 0, 0, <bID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <aID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21063, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the tiger eye.", 0, 0, "You apply the tiger eye, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524177, 0, 0, <fID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <aID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21081, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the white quartz.", 0, 0, "You apply the white quartz, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524178, 0, 0, <cID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <aID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21085, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the serpentine.", 0, 0, "You apply the serpentine, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524179, 0, 0, <aID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21075, <eID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe (id, unknown_1, skill, difficulty, salvage_Type, success_W_C_I_D, success_Amount, success_Message, fail_W_C_I_D, fail_Amount, fail_Message, success_Destroy_Source_Chance, success_Destroy_Source_Amount, success_Destroy_Source_Message, success_Destroy_Target_Chance, success_Destroy_Target_Amount, success_Destroy_Target_Message, fail_Destroy_Source_Chance, fail_Destroy_Source_Amount, fail_Destroy_Source_Message, fail_Destroy_Target_Chance, fail_Destroy_Target_Amount, fail_Destroy_Target_Message, data_Id, last_Modified)
+SELECT MAX(id) + 1, 0, 28, 0, 1, 0, 0, "You apply the amethyst.", 0, 0, "You apply the amethyst, but in the process you destroy the target.", 1, 1, NULL, 0, 0, NULL, 1, 1, NULL, 1, 1, NULL, 0, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO recipe_mod (recipe_Id, executes_On_Success, health, stamina, mana, unknown_7, data_Id, unknown_9, instance_Id, weenie_Class_Id)
+SELECT MAX(id), 0x01, 0, 0, 0, 0x00, 939524180, 0, 0, <eID> FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <sID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <pID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <bID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <fID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <cID>, "2022-12-19 10:00:00" FROM recipe;
+INSERT INTO cook_book (recipe_Id, source_W_C_I_D, target_W_C_I_D, last_Modified)
+SELECT MAX(id), 21036, <aID>, "2022-12-19 10:00:00" FROM recipe;

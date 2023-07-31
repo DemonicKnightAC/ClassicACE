@@ -277,5 +277,94 @@ namespace ACE.Database
                 BaseDatabase.CreatePKKill(victimId, killerId, victimMonarchId, killerMonarchId);
             }));
         }
+
+        public void GetConsignmentsByFilter(string filter, Action<List<ACE.Entity.Models.Consignment>> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.GetConsignmentsByFilter(filter);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void GetConsignmentsBySellerId(uint id, Action<List<ACE.Entity.Models.Consignment>> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.GetConsignmentsBySellerId(id);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void GetConsignmentCompletesBySellerId(uint id, Action<List<ACE.Entity.Models.ConsignmentComplete>> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.GetConsignmentCompletesBySellerId(id);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void GetConsignmentByObjectId(uint id, Action<ACE.Entity.Models.Consignment> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.GetConsignmentByObjectId(id);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void GetConsignmentCompleteById(uint id, Action<ACE.Entity.Models.ConsignmentComplete> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.GetConsignmentCompleteById(id);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void CreateConsignment(ACE.Entity.Models.Consignment consignment)
+        {
+            _queue.Add(new Task(() =>
+            {
+                BaseDatabase.CreateConsignment(consignment);
+            }));
+        }
+
+        public void RemoveConsignment(ACE.Entity.Models.Consignment consignment, Action<bool> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.RemoveConsignment(consignment);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void CreateConsignmentComplete(ACE.Entity.Models.ConsignmentComplete consignmentComplete, Action<bool> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.CreateConsignmentComplete(consignmentComplete);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void RemoveConsignmentComplete(ACE.Entity.Models.ConsignmentComplete consignmentComplete, Action<bool> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.RemoveConsignmentComplete(consignmentComplete);
+                callback?.Invoke(result);
+            }));
+        }
+
+        public void ReListConsignment(ACE.Entity.Models.ConsignmentComplete consignmentComplete, Action<bool> callback)
+        {
+            _queue.Add(new Task(() =>
+            {
+                var result = BaseDatabase.ReListConsignment(consignmentComplete);
+                callback?.Invoke(result);
+            }));
+        }
     }
 }
